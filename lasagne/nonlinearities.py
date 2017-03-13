@@ -303,3 +303,11 @@ def linear(x):
     return x
 
 identity = linear
+
+# modulus for scattering
+def modulus(x):
+    """
+    Scattering transform deals with complex numbers.
+    So you gotta have modulus.
+    """
+    theano.tensor.modulus(x) # check this.

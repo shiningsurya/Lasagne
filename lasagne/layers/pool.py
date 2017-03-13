@@ -89,6 +89,11 @@ def pool_2d(input, **kwargs):
         kwargs['padding'] = kwargs.pop('pad')
         return T.signal.pool.pool_2d(input, **kwargs)
 
+def subsample_2d(input, **kwargs):
+    """
+    Wrapper function that calls :func: `theano.tensor.signal.subsample_2d`
+    """
+    return T.signal.subsample_2d(input,**kwargs)
 
 def pool_3d(input, **kwargs):  # pragma: no cover
     """
@@ -290,6 +295,61 @@ class Pool2DLayer(Layer):
 
     def get_output_for(self, input, **kwargs):
         pooled = pool_2d(input,
+                         ws=self.pool_size,
+                         stride=self.stride,
+                         ignore_border=self.ignore_border,
+                         pad=self.pad,
+                         mode=self.mode,
+                         )
+        return pooled
+
+class Scat2DSubsample(ScatLayer):
+    """
+    Scattering transform subsampling layer
+    """
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
+                 ignore_border=True, **kwargs):
+        super(ScatLayer, self).__init__(incoming, **kwargs)
+
+        self.pool_size = as_tuple(pool_size, 2)
+
+        if len(self.input_shape) != 4:
+            raise ValueError("Tried to create a 2D pooling layer with "
+                             "input shape %r. Expected 4 input dimensions "
+                             "(batchsize, channels, 2 spatial dimensions)."
+                             % (self.input_shape,))
+
+        if stride is None:
+            self.stride = self.pool_size
+        else:
+            self.stride = as_tuple(stride, 2)
+
+        self.pad = as_tuple(pad, 2)
+
+        self.ignore_border = ignore_border
+        self.mode = mode
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)  # copy / convert to mutable list
+
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             pool_size=self.pool_size[0],
+                                             stride=self.stride[0],
+                                             pad=self.pad[0],
+                                             ignore_border=self.ignore_border,
+                                             )
+
+        output_shape[3] = pool_output_length(input_shape[3],
+                                             pool_size=self.pool_size[1],
+                                             stride=self.stride[1],
+                                             pad=self.pad[1],
+                                             ignore_border=self.ignore_border,
+                                             )
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, **kwargs):
+        pooled = subsample_2d(input,
                          ws=self.pool_size,
                          stride=self.stride,
                          ignore_border=self.ignore_border,
